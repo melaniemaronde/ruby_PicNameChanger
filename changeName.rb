@@ -25,26 +25,28 @@ begin
     file_name = file.chomp(extension)
     file_path = "#{source_dir}#{file_name}#{extension}"
     
+    logger.info('File found') {"#{file_name}"}
+    
     #check extension
-    if (extension!= '.jpg' && extension != '.JPG')
-      logger.warn('File found') {"#{file_path} has wrong extension. currently only 'jpg' and 'JPG' are supported. File will not be handled"}
+    if (file_name == '.' || file_name == '..')
+      logger.warn('wrong filename') {"#{file_path} will not be handled"}
     else
       logger.info('File found') {"#{file_path}"}
-    
-      unless (file_name == '.' || file_name == '..')
-        #get timestamps
-        dateTaken = EXIFR::JPEG.new(file_path).date_time_original  # original date taken
-        mtime = File.new(file_path).mtime                          # modification time
+   
+      #get timestamps
+      dateTaken = nil
+      mtime = File.new(file_path).mtime                          # modification time
 
-        #check existence of timestamps
-        if(dateTaken!=nil) 
-        time = Time.parse(dateTaken.to_s)
+      #check existence of timestamps
+      if(mtime!=nil) 
+        time = Time.parse(mtime.to_s)
+      else
+        logger.warn('loading date') {"Property 'Modification Time' is not set. Try to use 'Date taken'"}
+        dateTaken = EXIFR::JPEG.new(file_path).date_time_original  # original date taken
+        if(dateTaken != nil)
+          time = Time.parse(dateTaken.to_s)
         else
-          logger.warn('loading date') {"Property 'Date taken' is not set. Try to use 'Modification Time'"}
-          if(mtime != nil)
-            time = Time.parse(mtime.to_s)
-        else
-          raise "missing property 'Modification Time'. Could not rename file"
+          raise "missing property 'Date taken'. Could not rename file"
         end
       end
   
@@ -60,11 +62,10 @@ begin
         FileUtils.touch file_path_new, :mtime => mtime
         logger.info('File touched') {"#{file_path_new}"}
       end
-     end
     end
-   end
-rescue => err
-  logger.fatal('Error') {"Exception: #{err}"}
-  err
+  end
+  rescue => err
+    logger.fatal('Error') {"Exception: #{err}"}
+    err
 end
   
